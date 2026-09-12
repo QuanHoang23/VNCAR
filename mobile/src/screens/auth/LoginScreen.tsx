@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,13 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { theme } from '../../theme';
+import auth from '@react-native-firebase/auth';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // --- SVGs ---
 
@@ -66,6 +70,60 @@ const GoogleIcon = () => (
 // --- Component ---
 
 const LoginScreen = ({ navigation }: any) => {
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '193471841626-9vo6188s25pv6rrjpbl4l446dllnr313.apps.googleusercontent.com',
+    });
+  }, []);
+
+  const handlePhoneLogin = async () => {
+    if (!phoneNumber) {
+      Alert.alert('Lỗi', 'Vui lòng nhập số điện thoại');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      let formattedNumber = phoneNumber.trim();
+      if (formattedNumber.startsWith('0')) {
+        formattedNumber = formattedNumber.substring(1);
+      }
+      formattedNumber = `+84${formattedNumber}`;
+
+      const confirmation = await auth().signInWithPhoneNumber(formattedNumber);
+      navigation.navigate('OTPVerification', { confirmation, phoneNumber: formattedNumber });
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Lỗi đăng nhập', error.message || 'Không thể gửi mã OTP');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const signInResult = await GoogleSignin.signIn();
+      const idToken = signInResult.data?.idToken;
+
+      if (!idToken) {
+        throw new Error('No ID token found');
+      }
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      await auth().signInWithCredential(googleCredential);
+    } catch (error: any) {
+      console.error(error);
+      if (error.code !== 'SIGN_IN_CANCELLED' && error.code !== '12501') {
+        Alert.alert('Lỗi đăng nhập Google', error.message || 'Đã xảy ra lỗi');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
@@ -103,14 +161,22 @@ const LoginScreen = ({ navigation }: any) => {
                     placeholderTextColor="#94A3B8"
                     keyboardType="phone-pad"
                     maxLength={11}
+                    value={phoneNumber}
+                    onChangeText={setPhoneNumber}
+                    editable={!isLoading}
                   />
                 </View>
 
                 <TouchableOpacity 
-                  style={styles.primaryButton}
-                  onPress={() => navigation.navigate('OTPVerification')}
+                  style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+                  onPress={handlePhoneLogin}
+                  disabled={isLoading}
                 >
-                  <Text style={styles.primaryButtonText}>Tiếp tục</Text>
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>Tiếp tục</Text>
+                  )}
                 </TouchableOpacity>
 
                 {/* Or Divider */}
@@ -121,7 +187,11 @@ const LoginScreen = ({ navigation }: any) => {
                 </View>
 
                 {/* Google Login */}
-                <TouchableOpacity style={styles.googleButton}>
+                <TouchableOpacity 
+                  style={[styles.googleButton, isLoading && styles.primaryButtonDisabled]} 
+                  onPress={handleGoogleLogin}
+                  disabled={isLoading}
+                >
                   <View style={styles.googleIconWrapper}>
                     <GoogleIcon />
                   </View>
@@ -262,6 +332,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
   },
   orContainer: {
     flexDirection: 'row',

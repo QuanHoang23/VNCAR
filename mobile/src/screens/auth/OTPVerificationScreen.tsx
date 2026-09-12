@@ -10,6 +10,8 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { theme } from '../../theme';
@@ -54,8 +56,10 @@ const AppIcon = () => (
 
 // --- Component ---
 
-const OTPVerificationScreen = ({ navigation }: any) => {
-  const [otp, setOtp] = useState(['', '', '', '']);
+const OTPVerificationScreen = ({ route, navigation }: any) => {
+  const { confirmation, phoneNumber } = route.params || {};
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
   const handleOtpChange = (text: string, index: number) => {
@@ -64,7 +68,7 @@ const OTPVerificationScreen = ({ navigation }: any) => {
     setOtp(newOtp);
 
     // Auto focus next input
-    if (text && index < 3) {
+    if (text && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -77,6 +81,21 @@ const OTPVerificationScreen = ({ navigation }: any) => {
   };
 
   const isOtpComplete = otp.every((digit) => digit.length === 1);
+
+  const verifyOTP = async () => {
+    if (!isOtpComplete || !confirmation) return;
+    try {
+      setIsLoading(true);
+      const code = otp.join('');
+      await confirmation.confirm(code);
+      // Firebase auth state change listener in App.tsx handles the navigation automatically
+    } catch (error: any) {
+      console.error('Invalid OTP', error);
+      Alert.alert('Lỗi', 'Mã OTP không hợp lệ hoặc đã hết hạn');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -104,7 +123,7 @@ const OTPVerificationScreen = ({ navigation }: any) => {
                 <AppIcon />
               <Text style={styles.title}>Xác nhận số điện thoại</Text>
               <Text style={styles.description}>Nhập mã OTP đã được gửi tới</Text>
-              <Text style={styles.phoneNumber}>+84 912 *** 123</Text>
+              <Text style={styles.phoneNumber}>{phoneNumber || '+84 912 *** 123'}</Text>
             </View>
 
             {/* Form Section */}
@@ -126,6 +145,7 @@ const OTPVerificationScreen = ({ navigation }: any) => {
                     keyboardType="number-pad"
                     maxLength={1}
                     autoFocus={index === 0}
+                    editable={!isLoading}
                   />
                 ))}
               </View>
@@ -141,12 +161,16 @@ const OTPVerificationScreen = ({ navigation }: any) => {
               <TouchableOpacity 
                 style={[
                   styles.primaryButton,
-                  !isOtpComplete && styles.primaryButtonDisabled
+                  (!isOtpComplete || isLoading) && styles.primaryButtonDisabled
                 ]}
-                disabled={!isOtpComplete}
-                onPress={() => navigation.navigate('LocationPermission')}
+                disabled={!isOtpComplete || isLoading}
+                onPress={verifyOTP}
               >
-                <Text style={styles.primaryButtonText}>Xác nhận</Text>
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Xác nhận</Text>
+                )}
               </TouchableOpacity>
 
 
@@ -236,18 +260,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     width: '100%',
-    maxWidth: 286,
-    gap: 16, // Space between OTP boxes
+    maxWidth: 320,
+    gap: 8, // Space between OTP boxes
     marginBottom: 32,
   },
   otpBox: {
-    width: 58,
-    height: 58,
+    width: 44,
+    height: 52,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '600',
     color: '#0F172A',
     textAlign: 'center',

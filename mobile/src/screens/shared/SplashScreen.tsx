@@ -87,13 +87,9 @@ const SplashScreen = ({ navigation }: any) => {
     };
 
     animateDots();
-    // 4. Navigate to Login after 3 seconds
-    const timer = setTimeout(() => {
-      navigation.replace('Login');
-    }, 3000);
 
-    return () => clearTimeout(timer);
-  }, [navigation]);
+    return () => {};
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>

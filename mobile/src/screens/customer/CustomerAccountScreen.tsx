@@ -288,7 +288,17 @@ const CustomerAccountScreen = ({ navigation }: any) => {
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.navigate('Login')}>
+        <TouchableOpacity 
+          style={styles.logoutBtn} 
+          onPress={async () => {
+            try {
+              const auth = require('@react-native-firebase/auth').default;
+              await auth().signOut();
+            } catch (e) {
+              console.error(e);
+            }
+          }}
+        >
           <LogoutIcon />
           <Text style={styles.logoutText}>Đăng xuất</Text>
         </TouchableOpacity>

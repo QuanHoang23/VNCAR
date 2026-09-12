@@ -6,3 +6,5 @@ build/
 *.iml
 local.properties
 .DS_Store
+
+mobile/android/app/google-services.json
